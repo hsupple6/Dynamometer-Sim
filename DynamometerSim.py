@@ -34,6 +34,7 @@ Academic Integrity Statement:
 """ Write any import statements here (and delete this line)."""
 
 def enginemapsim(displacement, CR, enginemap):
+    #Import all functions
     import numpy as np
     import matplotlib.pyplot as plt
     from scipy.interpolate import CubicSpline
@@ -60,36 +61,38 @@ def enginemapsim(displacement, CR, enginemap):
     # Prepare figure and axis
     fig, ax1 = plt.subplots()
 
-    # Generate Xvals and Yvals
+    # Generate Xvals and Yvals with two extra to end function
     Xvals = np.array([float(x) for x in enginemap[1][1:]])
     Xvals = np.append(Xvals, Xvals[-1]+100)
     Xvals = np.append(Xvals, Xvals[-1]+100)
-
+    #Append all Ys to Yvals with scale
     Yvals = np.array([float(y)*scale for y in enginemap[11][1:len(Xvals)-1]])
-
+    #Add realism scaling to program
     for i in range(0, len(Xvals)-2):
         Yvals[i] = Yvals[i]*(0.5+0.009803*i)
-
+    #Append half the end value and 0 for realism
     Yvals = np.append(Yvals, Yvals[-1]/2)
     Yvals = np.append(Yvals, 0)
 
     addition = 0
+    #Iterate throughout Yvals to add realism scaling
     for i in range(0, len(Yvals)):
         addition += random.randint(-2, 2)
         Yvals[i] = Yvals[i] + addition
 
     torques = []
-
+    #CubicSpline to calculate a line
     spline = CubicSpline(Xvals, Yvals)
-
+    #Linespace to calculate X Line
     Xinterp = np.linspace(min(Xvals), max(Xvals), 1000)
     Yinterp = spline(Xinterp)
     differential = 0.2
     n = 0
     for num in range(0, len(Xvals)-1):
         try:
-            
+            #Iterate throughout num in range of Xvals to find Torque values
             torque = (spline(float(Xvals[num]))*525.2)/float(Xvals[num])*differential
+            #Append to torques
             torques = np.append(torques, torque)
             if torque > topTorque:
                 topTorque = torque
@@ -101,15 +104,15 @@ def enginemapsim(displacement, CR, enginemap):
             continue
     
     torques = np.append(torques, 0)
-
+    #Output legends
     maxt = f"Max Torque={round(topTorque,2)}(lb•ft)@{gRPM}(RPM)"
     maxh = f"Max Power={round(topHP, 2)}(HP)@{enginemap[1][topRPM]}(RPM)"
     ax1.plot(Xinterp, Yinterp, 'r-', label=maxh)
     ax1.set_xlabel('Engine RPMs')
-    ax1.set_ylabel('Horsepower (Kg•m/s)')
+    ax1.set_ylabel('Horsepower')
     ax1.tick_params(axis='y')
 
-
+    #Format Labels
     ax2 = ax1.twinx()
     ax2.plot(Xvals, torques, '--', label=maxt, color='#eb4d8f')
     ax2.set_ylabel('Torques (ft•lb)')
@@ -119,7 +122,7 @@ def enginemapsim(displacement, CR, enginemap):
     handles2, labels2 = ax2.get_legend_handles_labels() 
     ax1.legend(handles + handles2, labels + labels2, loc='upper left')
 
- 
-    plt.title('Engine Map Simulation with Torques')
+    #Title Plot
+    plt.title('Simulated Dynamometer')
 
     plt.show()

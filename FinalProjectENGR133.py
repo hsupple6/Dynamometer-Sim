@@ -33,20 +33,23 @@ Academic Integrity Statement:
 """
 
 from DynamometerSim import enginemapsim
+
 import math
 import numpy as np
 import xlsxwriter as excel
-import random
 
 def exsheet(gasinj):
+    #Define all variables. Colors will be reference array for excel sheet.
     colors = ['#bdeb34','#d9fa05','#fafa05','#ffec1c','#ffca1c','#eda011', '#ed7f11', '#ed4c11', '#c94210', '#fc5603', '#a31212','#820c0c', '#7d0b02']
     thresholds = []
     min = 0
     max = 0
     compmax = 0 
     compmin = 100
-    workbook = excel.Workbook("/Users/haydensupple/Downloads/GasInjValues.xlsx")
+    #Open Workbook
+    workbook = excel.Workbook("GasInjValues.xlsx")
     worksheet = workbook.add_worksheet()
+    #Iterate through gasinj to gain max and min values
     for i in range(2,len(gasinj)):
         for j in range(1,len(gasinj[i])):
             if float(gasinj[i][j]) < compmin:
@@ -55,13 +58,15 @@ def exsheet(gasinj):
             elif float(gasinj[i][j]) > compmax:
                 max = float(gasinj[i][j])
                 compmax = float(gasinj[i][j])
-    
+    #Threshold values will be every iteration of the range/13
     val = (max-min)/13
+    #Append 0 for minimum
     thresholds.append(0)
-
+    #Create thresholds based on the minimum + val iterated
     for i in range(1,14):
         thresholds.append(min+(i*val))
 
+    #Iterate through gasinj and append to worksheet
     for i in range(len(gasinj)):
         for j in range(len(gasinj[i])):
             value = gasinj[i][j]
@@ -72,75 +77,77 @@ def exsheet(gasinj):
                         color = colors[o-1]
                         break 
                 if color: 
+                    #If its a value for gasoline, format box to be a color from threshold
                     cf = workbook.add_format({'bg_color': color})
                     worksheet.write(i, j, value, cf)
                 else: 
+                    #If no color, append value
                     worksheet.write(i, j, value)
             else: 
                 worksheet.write(i, j, value)
     workbook.close()
 
 def ratio2gram(enginemap, gasinj, vol, cyl, max):
+    #Define volume of displacement per cylinder * cylinder
     vol = cyl*vol
     RPMS = [1000]
+    #Create RPM range up to max
     RPMS.extend(range(1100, max+100, 100))
     
     line = []
 
-
+    #Iterate through range of enginemap
     for i in range(2, len(enginemap)):
+        #Get load variable from column 0
         pressure = int(enginemap[i][0])
+        #Calculate Intake Volume
         intvol = vol*(pressure/101.325)*0.8
 
+        #Calculate grams of gasoline per ratio
         grams = intvol*1.225
         line = []
+        #Iterate through the range of enginemap to calculate the Air:fuel Ratio, grams of fuel, and append to a line
         for j in range(1, len(enginemap[i])):
             ratio = float(enginemap[i][j])
             gfuel = grams/ratio
             line = np.append(line, str(round(gfuel,4)))
-
+        #Append line to gasinj
         for num in line:
             gasinj[i] = np.append(gasinj[i], num)
     for i in range(1, len(gasinj)):
         gasinj[i] = gasinj[i][:len(gasinj[1])]
 
-    with open("B:\\Downloads\\Gasinj.txt", "w") as writefile:
-        for row in gasinj:
-            writefile.write(','.join(map(str, row)) + '\n')
-
 def main():
-
-
-    heatingval = 46.7
+    #Define all variables
     bore = 300
     stroke = 350
     piston = ""
     ph = 0
     cr = 0
     cyl = 0
-    
+    #Define list for cylinders, piston style and octane
     cylinders = [4,6,8,10,12]
-    octane = [5,72,6,81,7,87,8,92,9,96,10,100,11,104,12,108,13,112,14,114,15,116]
+    octane = [5,72,6,72,7,80,8,85,9,87,10,92,11,92,12,96,13,100,14,108,15,112]
     pstyles = ["flat", "flat-top with reliefs", "dish", "hemi"]
-    print("**Warning: Values displayed in simulation follow optimal conditions of a 14.7:1 AFR with no consideration of airflow to engine. Assume optimal boost pressures and forced induction**")
-    #bore = 92                                                 ## DELETE THIS LINE WHEN FINISHED
+    print("**Warning: Values displayed in simulation follow optimal conditions of a 14.7:1 AFR \nwith no consideration of airflow to engine. Assume optimal boost pressures and forced \ninduction**")
+    #Make limitations for maximmum and minimum bore size with errors
     while bore > 200 or bore < 60:
         bore = float(input("Enter Bore Width (mm): "))
         if bore > 200:
             print("Bore must be below 200 millimeters!")
         if bore < 60:
             print("Bore must be higher than 60 millimeters!")
-    #stroke = 82.7                                                ## DELETE THIS LINE WHEN FINISHED
+    #Make limitations for bore/stroke rastio with errors
     while bore/stroke <= 0.5 or bore/stroke >= 1.5:
         stroke = float(input("Enter Stroke Length (mm): "))
         if bore/stroke <= 0.5:
             print("Warning: Stroke:Bore Ratio is too high oversquare!")
         if bore/stroke >= 1.5:
             print("Warning: Stroke:Bore Ratio is too low undersquare!")
-    #piston = "flat-top with reliefs"                                       ## DELETE THIS LINE WHEN FINISHED
+    #Make limiitations for piston style
     while piston not in pstyles:
         piston = input("Enter Piston Type (flat, flat-top with reliefs, hemi): ").lower()
-
+    #Calulate estimated valve diameter and use volume to substract from pistons
     vdiam = math.sqrt((6000*stroke*(bore**2))/(2286000))
     if piston == "flat":
         ph = 0
@@ -150,23 +157,22 @@ def main():
     elif piston == "hemi":
         ph = -0.25*vdiam
     vol = ((math.pi*((0.5*bore)**2)*stroke)-ph)*(10**(-6))
-    #cr = (vol+cv)/cv                                            ## DELETE THIS LINE WHEN FINISHED
     while cr < 5 or cr > 15:
         cr = float(input(f"Enter Your Desired Compression Ratio (Format as X in X:1) "))
-
+    #Request for compression ratio with errors
         if cr < 5:
             print("Warning: Compression Ratio too low for combustion!")
         if cr > 15:
             print("Warning: Compression Ratio too high! Engine will detonate!")
 
     print(f"**Engine will use {octane[octane.index(math.floor(cr))+1]} octane gasoline**\n**Engine has a Compression Ratio of {cr:.1f}:1**")
-    #cyl = 8                                            ## DELETE THIS LINE WHEN FINISHED
+    #Request for cylinder numbers
     while cyl not in cylinders:
         cyl = int(input("Enter the amount of Cylinders: "))
     if cyl == 4:
         rpm = 8000
         print(f"**Maximum engine speed determined to be {rpm} RPM**")
-
+    #For each cylinder, define RPM values
     if cyl == 6:
         rpm = 6800
         print(f"**Maximum engine speed determined to be {rpm} RPM**")
@@ -182,29 +188,32 @@ def main():
     
     enginemap = []
     gasinj = []
-
-    with open("/Users/haydensupple/Downloads/EngineMapping.txt", "r") as file:
+    #Open enginemap file and append to 2D array
+    with open("EngineMapping.txt", "r") as file:
         for line in file:
             line_values = line.strip().split(',')
             enginemap.append(line_values)
 
         for i in range(0, len(enginemap)-1):
             enginemap[i] = enginemap[i][:int(rpm/100)-8]
-    with open("/Users/haydensupple/Downloads/GasINJ2.txt", "r") as gasfile:
+    #Open Gasinjector file and append to 2D array
+    with open("GasINJ2.txt", "r") as gasfile:
         for line in gasfile:
             line_values = line.strip().split(',')
             gasinj.append(line_values)
+    #Ensure RPM matches maximum RPM
     while int(gasinj[1][-1]) < rpm:
         gasinj[1].append(int(gasinj[1][-1])+100)
-
+    #Enact functions
     ratio2gram(enginemap, gasinj, vol, cyl, int(gasinj[1][-1]))
     exsheet(gasinj)
     
-    aat = 308
     print("**Simulation will Report Base Horsepower (Hp) and Torque (Ft-Lbs)**")
 #########################################################################################
 ##Simulation Below##
+    #Estimate volume in cubic inches
     vol = vol*cyl*61.0237
+    #Enact simulator
     enginemapsim(vol, cr, gasinj)
     
 if __name__ == "__main__":
